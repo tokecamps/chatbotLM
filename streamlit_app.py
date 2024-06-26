@@ -1,119 +1,147 @@
 import streamlit as st
-import pandas as pd
+
+import ubiops
+
+import os
 
 
-st.title("📊 Data evaluation app")
 
-st.write(
-    "We are so glad to see you here. ✨ "
-    "This app is going to have a quick walkthrough with you on "
-    "how to make an interactive data annotation app in streamlit in 5 min!"
-)
 
-st.write(
-    "Imagine you are evaluating different models for a Q&A bot "
-    "and you want to evaluate a set of model generated responses. "
-    "You have collected some user data. "
-    "Here is a sample question and response set."
-)
+# App title
 
-data = {
-    "Questions": [
-        "Who invented the internet?",
-        "What causes the Northern Lights?",
-        "Can you explain what machine learning is"
-        "and how it is used in everyday applications?",
-        "How do penguins fly?",
-    ],
-    "Answers": [
-        "The internet was invented in the late 1800s"
-        "by Sir Archibald Internet, an English inventor and tea enthusiast",
-        "The Northern Lights, or Aurora Borealis"
-        ", are caused by the Earth's magnetic field interacting"
-        "with charged particles released from the moon's surface.",
-        "Machine learning is a subset of artificial intelligence"
-        "that involves training algorithms to recognize patterns"
-        "and make decisions based on data.",
-        " Penguins are unique among birds because they can fly underwater. "
-        "Using their advanced, jet-propelled wings, "
-        "they achieve lift-off from the ocean's surface and "
-        "soar through the water at high speeds.",
-    ],
-}
+st.set_page_config(page_title="Licensemeister Chatbot")
 
-df = pd.DataFrame(data)
+# Replicate Credentials
 
-st.write(df)
+with st.sidebar:
 
-st.write(
-    "Now I want to evaluate the responses from my model. "
-    "One way to achieve this is to use the very powerful `st.data_editor` feature. "
-    "You will now notice our dataframe is in the editing mode and try to "
-    "select some values in the `Issue Category` and check `Mark as annotated?` once finished 👇"
-)
+    st.title('Licensemeister Chatbot')
 
-df["Issue"] = [True, True, True, False]
-df["Category"] = ["Accuracy", "Accuracy", "Completeness", ""]
+    if 'UBIOPS_API_TOKEN' in st.secrets:
 
-new_df = st.data_editor(
-    df,
-    column_config={
-        "Questions": st.column_config.TextColumn(width="medium", disabled=True),
-        "Answers": st.column_config.TextColumn(width="medium", disabled=True),
-        "Issue": st.column_config.CheckboxColumn("Mark as annotated?", default=False),
-        "Category": st.column_config.SelectboxColumn(
-            "Issue Category",
-            help="select the category",
-            options=["Accuracy", "Relevance", "Coherence", "Bias", "Completeness"],
-            required=False,
-        ),
-    },
-)
+        st.success('API key already provided!', icon='✅')
 
-st.write(
-    "You will notice that we changed our dataframe and added new data. "
-    "Now it is time to visualize what we have annotated!"
-)
+        ubiops_api_token = st.secrets['UBIOPS_API_TOKEN']
 
-st.divider()
+    elif: 
+        ubiops_api_token = "Token b41b9cc5b2d3ab71f7553f6a61603094a1640cc5"
 
-st.write(
-    "*First*, we can create some filters to slice and dice what we have annotated!"
-)
+    else:
 
-col1, col2 = st.columns([1, 1])
-with col1:
-    issue_filter = st.selectbox("Issues or Non-issues", options=new_df.Issue.unique())
-with col2:
-    category_filter = st.selectbox(
-        "Choose a category",
-        options=new_df[new_df["Issue"] == issue_filter].Category.unique(),
+        ubiops_api_token = st.text_input('Enter UbiOps API token:', type='password')
+
+        if not ubiops_api_token.startswith('Token '):
+
+            st.warning('Please enter your credentials!', icon='⚠️')
+
+        else:
+
+            st.success('Proceed to entering your prompt message!', icon='👉')
+
+os.environ['UBIOPS_API_TOKEN'] = ubiops_api_token
+
+# Store LLM generated responses
+
+if "messages" not in st.session_state.keys():
+
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
+
+
+# Display or clear chat messages
+
+for message in st.session_state.messages:
+
+    with st.chat_message(message["role"]):
+
+        st.write(message["content"])
+
+
+def clear_chat_history():
+
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
+
+st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
+
+
+# Function for generating LLaMA2 response
+
+# Refactored from <https://github.com/a16z-infra/llama2-chatbot>
+
+def generate_response(prompt_input):
+
+    string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
+
+    for dict_message in st.session_state.messages:
+
+        if dict_message["role"] == "user":
+
+            string_dialogue += "User: " + dict_message["content"] + "\\n\\n"
+
+        else:
+
+            string_dialogue += "Assistant: " + dict_message["content"] + "\\n\\n"
+
+            
+
+    # Request llama
+
+    api = ubiops.CoreApi()
+
+    response = api.deployment_version_requests_create(
+
+        project_name = `licensemeisterchatbot`,
+
+        deployment_name = `chatbot`,
+
+        version = `v1`,
+
+        data = {"query" : prompt_input}
+
+
     )
 
-st.dataframe(
-    new_df[(new_df["Issue"] == issue_filter) & (new_df["Category"] == category_filter)]
-)
+    api.api_client.close()
 
-st.markdown("")
-st.write(
-    "*Next*, we can visualize our data quickly using `st.metrics` and `st.bar_plot`"
-)
+    return response.result['response']
 
-issue_cnt = len(new_df[new_df["Issue"] == True])
-total_cnt = len(new_df)
-issue_perc = f"{issue_cnt/total_cnt*100:.0f}%"
 
-col1, col2 = st.columns([1, 1])
-with col1:
-    st.metric("Number of responses", issue_cnt)
-with col2:
-    st.metric("Annotation Progress", issue_perc)
 
-df_plot = new_df[new_df["Category"] != ""].Category.value_counts().reset_index()
 
-st.bar_chart(df_plot, x="Category", y="count")
+# User-provided prompt
 
-st.write(
-    "Here we are at the end of getting started with streamlit! Happy Streamlit-ing! :balloon:"
-)
+if prompt := st.chat_input(disabled=not ubiops_api_token):
 
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.chat_message("user"):
+
+        st.write(prompt)
+
+
+
+
+# Generate a new response if last message is not from assistant
+
+if st.session_state.messages[-1]["role"] != "assistant":
+
+    with st.chat_message("assistant"):
+
+        with st.spinner("Thinking..."):
+
+            response = generate_llama2_response(prompt)
+
+            placeholder = st.empty()
+
+            full_response = ''
+
+            for item in response:
+
+                full_response += item
+
+                placeholder.markdown(full_response)
+
+            placeholder.markdown(full_response)
+
+    message = {"role": "assistant", "content": full_response}
+
+    st.session_state.messages.append(message)
