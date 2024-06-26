@@ -89,11 +89,11 @@ def generate_response(prompt_input):
 
     response = api.deployment_version_requests_create(
 
-        project_name = `licensemeisterchatbot`,
+        project_name = 'licensemeisterchatbot',
 
-        deployment_name = `chatbot`,
+        deployment_name = 'chatbot',
 
-        version = `v1`,
+        version = 'v1',
 
         data = {"query" : prompt_input}
 
