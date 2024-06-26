@@ -23,20 +23,20 @@ with st.sidebar:
 
         ubiops_api_token = st.secrets['UBIOPS_API_TOKEN']
 
-    elif: 
+    else: 
         ubiops_api_token = "Token b41b9cc5b2d3ab71f7553f6a61603094a1640cc5"
 
-    else:
+    # else:
 
-        ubiops_api_token = st.text_input('Enter UbiOps API token:', type='password')
+    #     ubiops_api_token = st.text_input('Enter UbiOps API token:', type='password')
 
-        if not ubiops_api_token.startswith('Token '):
+    #     if not ubiops_api_token.startswith('Token '):
 
-            st.warning('Please enter your credentials!', icon='⚠️')
+    #         st.warning('Please enter your credentials!', icon='⚠️')
 
-        else:
+    #     else:
 
-            st.success('Proceed to entering your prompt message!', icon='👉')
+    #         st.success('Proceed to entering your prompt message!', icon='👉')
 
 os.environ['UBIOPS_API_TOKEN'] = ubiops_api_token
 
