@@ -128,7 +128,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
 
         with st.spinner("Thinking..."):
 
-            response = generate_llama2_response(prompt)
+            response = generate_response(prompt)
 
             placeholder = st.empty()
 
